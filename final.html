@@ -263,43 +263,49 @@
   }
 
   function handleFlip(card) {
-    if (locked || card.classList.contains('flipped')) return;
-    card.classList.add('flipped');
-    flipped.push(card);
+  if (locked || card.classList.contains('flipped')) return;
+  card.classList.add('flipped');
+  flipped.push(card);
 
-    if (flipped.length === 2) {
-      locked = true;
-      const [a, b] = flipped;
-      const valA = a.querySelector('.back').textContent;
-      const valB = b.querySelector('.back').textContent;
+  if (flipped.length === 2) {
+    locked = true;
+    const [a, b] = flipped;
+    const valA = a.querySelector('.back').textContent;
+    const valB = b.querySelector('.back').textContent;
 
-      if (valA === valB) {
-        flipped = [];
-        locked = false;
-        if (document.querySelectorAll('.card.flipped').length === board.length) {
-          handleScore(10);
-          setTimeout(() => {
-            if (confirm("🎉 Bạn đã thắng! Chơi lại?")) initBoard();
-          }, 500);
-        }
-      } else {
+    if (valA === valB) {
+      flipped = [];
+      locked = false;
+
+      // Kiểm tra nếu đã thắng (tất cả ô đều lật đúng)
+      if (document.querySelectorAll('.card.flipped').length === board.length) {
+        handleScore(10);
         setTimeout(() => {
-          document.getElementById("boing-sound").play();
-          flipped.forEach(c => c.classList.remove('flipped'));
-          const correct = document.querySelectorAll('.card.flipped').length;
-          setTimeout(() => {
-            if (correct >= 8) {
-              handleScore(1);
-            } else {
-              handleScore(0);
-            }
-            initBoard();
-            locked = false;
-          }, 300);
-        }, 800);
+          if (confirm("🎉 Bạn đã thắng! Chơi lại?")) {
+            initBoard(); // shuffle lại sau khi thắng
+          }
+        }, 500);
       }
+
+    } else {
+      setTimeout(() => {
+        document.getElementById("boing-sound").play();
+        flipped.forEach(c => c.classList.remove('flipped'));
+        const correct = document.querySelectorAll('.card.flipped').length;
+        setTimeout(() => {
+          // Điểm nếu đúng từ 8 ô trở lên
+          if (correct >= 8) {
+            handleScore(1);
+          } else {
+            handleScore(0);
+          }
+          flipped = [];
+          locked = false;
+        }, 300);
+      }, 800);
     }
   }
+}
 </script>
 
 <body>
@@ -420,33 +426,6 @@
         container.appendChild(card);
       });
     }
-
-    function handleFlip(card) {
-      if (locked || card.classList.contains('flipped')) return;
-      card.classList.add('flipped');
-      flipped.push(card);
-
-      if (flipped.length === 2) {
-        locked = true;
-        const [a, b] = flipped;
-        const valA = a.querySelector('.back').textContent;
-        const valB = b.querySelector('.back').textContent;
-
-        if (valA === valB) {
-          flipped = [];
-          locked = false;
-        } else {
-          setTimeout(() => {
-            document.getElementById("boing-sound").play();
-            document.querySelectorAll('.card').forEach(c => c.classList.remove('flipped'));
-            setTimeout(() => {
-              initBoard();
-              locked = false;
-            }, 300);
-          }, 800);
-        }
-      }
-    }
-  </script>
+      </script>
 </body>
 </html>
