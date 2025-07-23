@@ -277,12 +277,12 @@
       flipped = [];
       locked = false;
 
-      // Kiểm tra nếu đã thắng (tất cả ô đều lật đúng)
+      // Nếu lật hết tất cả cặp đúng
       if (document.querySelectorAll('.card.flipped').length === board.length) {
         handleScore(10);
         setTimeout(() => {
           if (confirm("🎉 Bạn đã thắng! Chơi lại?")) {
-            initBoard(); // shuffle lại sau khi thắng
+            initBoard(); // chỉ shuffle lại khi thắng
           }
         }, 500);
       }
@@ -290,10 +290,14 @@
     } else {
       setTimeout(() => {
         document.getElementById("boing-sound").play();
-        flipped.forEach(c => c.classList.remove('flipped'));
-        const correct = document.querySelectorAll('.card.flipped').length;
+
+        // ❗❗ Lật úp toàn bộ các thẻ (kể cả đúng)
+        document.querySelectorAll('.card').forEach(c => c.classList.remove('flipped'));
+
+        const correct = document.querySelectorAll('.card.flipped').length; // lúc này = 0
+
         setTimeout(() => {
-          // Điểm nếu đúng từ 8 ô trở lên
+          // Chấm điểm theo yêu cầu
           if (correct >= 8) {
             handleScore(1);
           } else {
@@ -306,6 +310,7 @@
     }
   }
 }
+
 </script>
 
 <body>
