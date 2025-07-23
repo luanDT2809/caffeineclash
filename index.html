@@ -134,6 +134,174 @@
     }
   </style>
 </head>
+<!-- Firebase Auth + Firestore Leaderboard -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+  // Firebase config bạn cung cấp
+  const firebaseConfig = {
+    apiKey: "AIzaSyCvzWN3TaOzVqfnmydlLAciY5Ps1NNA4-s",
+    authDomain: "caffeineclash.firebaseapp.com",
+    projectId: "caffeineclash",
+    storageBucket: "caffeineclash.firebasestorage.app",
+    messagingSenderId: "6327467073",
+    appId: "1:6327467073:web:94a629f6d14a11aa01dac0",
+    measurementId: "G-P87RYKDMDT"
+  };
+
+  // Init Firebase
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // Tạo nút đăng nhập
+  const loginBtn = document.createElement("button");
+  loginBtn.className = "game-button";
+  loginBtn.innerText = "🔐 Đăng nhập bằng Gmail";
+  loginBtn.onclick = async () => {
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider);
+  };
+
+  // Gán lại nút chơi cũ
+  const playBtn = document.querySelector(".game-button");
+  playBtn.style.display = "none";
+  playBtn.id = "playBtn";
+
+  // Tạo khu vực leaderboard
+  const leaderboardSection = document.createElement("div");
+  leaderboardSection.className = "section";
+  leaderboardSection.id = "leaderboardSection";
+  leaderboardSection.style.display = "none";
+  leaderboardSection.innerHTML = `
+    <h2 style="text-align:center;">🏆 Bảng xếp hạng</h2>
+    <ol id="leaderboard" style="font-size:1.2rem; text-align:center;"></ol>
+  `;
+  document.body.insertBefore(leaderboardSection, document.querySelector("footer"));
+
+  // Gắn login button vào DOM
+  document.querySelector(".button-container").prepend(loginBtn);
+
+  let user = null;
+  let userPoints = 0;
+
+  // Sau khi đăng nhập
+  onAuthStateChanged(auth, async (currentUser) => {
+    if (!currentUser) return;
+    user = currentUser;
+    loginBtn.style.display = "none";
+    playBtn.style.display = "inline-block";
+    leaderboardSection.style.display = "block";
+
+    const userRef = doc(db, "users", user.uid);
+    const snap = await getDoc(userRef);
+    if (!snap.exists()) {
+      await setDoc(userRef, { name: user.displayName, points: 0 });
+    } else {
+      userPoints = snap.data().points;
+    }
+    loadLeaderboard();
+  });
+
+  // Load top 10 người dùng
+  function loadLeaderboard() {
+    const q = query(collection(db, "users"), orderBy("points", "desc"), limit(10));
+    onSnapshot(q, (snapshot) => {
+      const list = document.getElementById("leaderboard");
+      list.innerHTML = "";
+      snapshot.forEach((doc) => {
+        const d = doc.data();
+        list.innerHTML += `<li>${d.name}: ${d.points} điểm</li>`;
+      });
+    });
+  }
+
+  // Bắt đầu game khi đã đăng nhập
+  document.getElementById("playBtn").onclick = () => {
+    document.getElementById("minigame").style.display = "block";
+    initBoard();
+    document.getElementById("minigame").scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Cập nhật biểu tượng mới
+  const icons = [
+    "matcha latte 🍵", "cafe ☕", "milk 🍶", "soda 🥤",
+    "Ren chiến 😤", "Ren nổ não 🤯", "Ren Luxury 😎", "Ren kêu ngạo 😏"
+  ];
+  let board = [], flipped = [], locked = false;
+
+  function shuffle(array) {
+    return array.sort(() => Math.random() - 0.5);
+  }
+
+  function initBoard() {
+    board = shuffle([...icons, ...icons]);
+    const container = document.getElementById('gameBoard');
+    container.innerHTML = '';
+    flipped = [];
+    board.forEach((text, index) => {
+      const card = document.createElement('div');
+      card.classList.add('card');
+      card.dataset.index = index;
+
+      card.innerHTML = `
+        <div class="face front"></div>
+        <div class="face back">${text}</div>
+      `;
+      card.addEventListener('click', () => handleFlip(card));
+      container.appendChild(card);
+    });
+  }
+
+  async function handleScore(pointsEarned) {
+    userPoints += pointsEarned;
+    await updateDoc(doc(db, "users", user.uid), { points: userPoints });
+    alert(`Bạn nhận được ${pointsEarned} điểm! Tổng điểm: ${userPoints}`);
+    loadLeaderboard();
+  }
+
+  function handleFlip(card) {
+    if (locked || card.classList.contains('flipped')) return;
+    card.classList.add('flipped');
+    flipped.push(card);
+
+    if (flipped.length === 2) {
+      locked = true;
+      const [a, b] = flipped;
+      const valA = a.querySelector('.back').textContent;
+      const valB = b.querySelector('.back').textContent;
+
+      if (valA === valB) {
+        flipped = [];
+        locked = false;
+        if (document.querySelectorAll('.card.flipped').length === board.length) {
+          handleScore(10);
+          setTimeout(() => {
+            if (confirm("🎉 Bạn đã thắng! Chơi lại?")) initBoard();
+          }, 500);
+        }
+      } else {
+        setTimeout(() => {
+          document.getElementById("boing-sound").play();
+          flipped.forEach(c => c.classList.remove('flipped'));
+          const correct = document.querySelectorAll('.card.flipped').length;
+          setTimeout(() => {
+            if (correct >= 8) {
+              handleScore(1);
+            } else {
+              handleScore(0);
+            }
+            initBoard();
+            locked = false;
+          }, 300);
+        }, 800);
+      }
+    }
+  }
+</script>
+
 <body>
 
   <div class="header">
